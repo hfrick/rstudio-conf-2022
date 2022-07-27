@@ -1,0 +1,698 @@
+---
+format:
+  revealjs: 
+    theme: [default, style.scss]
+    width: 1600
+    height: 900
+    footer: <https://censored.tidymodels.org>
+knitr:
+  opts_chunk: 
+    echo: true
+    collapse: true
+    comment: "#>"
+---
+
+```{r prep}
+#| include: false
+
+library(tidymodels)
+library(censored)
+cetaceans <- readRDS("cetaceans.rds") %>% 
+  select(age, event, species, sex, transfers, born_in_captivity)
+```
+
+##  {.title background-image="images/lavi-perchik-7cMEUKtfxdU-unsplash.jpg"}
+
+::: r-fit-text
+censored
+:::
+
+::: r-fit-text
+A tidymodels package for survival models - Hannah Frick
+:::
+
+::: footer
+Photo by <a href="https://unsplash.com/@laviperchik?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Lavi Perchik</a> on <a href="https://unsplash.com/?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
+:::
+
+
+##  {background-image="images/sami-salim-nXVgAAY_FsY-unsplash.jpg"}
+<!-- hospital bed -->
+
+::: footer
+Photo by <a href="https://unsplash.com/@slee6t?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">sami salim</a> on <a href="https://unsplash.com/?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
+:::
+
+:::{.notes}
+- When people hear survival analysis, they often think of situations (and data) like this.
+- It's called "survival analysis" for a reason and most examples are indeed of the category "time to death".
+- But that's not the only context for censored data and hence survival models!
+
+- Before I joined RStudio, I worked at a data science consultancy and one of my colleagues chatted to me about his latest project.
+:::
+
+
+
+<!-- dead sea: title slide?
+https://unsplash.com/photos/7cMEUKtfxdU
+-->
+
+
+<!-- newspaper stands -->
+##  {background-image="images/nikolay-loubet-QU6SkrPFjoU-unsplash.jpg"}
+
+::: footer
+Photo by <a href="https://unsplash.com/@k0lyosik?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Nikolay Loubet</a> on <a href="https://unsplash.com/?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
+:::
+
+:::{.notes}
+- A newspaper company wanted to know how many copies they should deliver to their various outlets and he was musing that 
+  - if there are copies left at the end of the day they would know how many were taken
+  - if there none left, they would still know how many were taking but they would _not_ know how many more would have been taking if they hadn't run out
+  - in that case, their observation of the demand for the newspaper is censored, capped at the number of papers they provided
+- so the stats nerd in me grinned and suggested to look at survival analysis
+- and now I get to tell you all about it too!
+:::
+
+<!-- For censored data, use survival analysis! -->
+##  {background-image="images/waldemar-brandt-JYPDh4ter10-unsplash.jpg" background-size="contain" background-position="left"}
+
+::: columns
+::: {.column width="40%"}
+:::
+
+::: {.column width="60%"}
+
+::: r-fit-text
+For censored data, 
+:::
+::: {.textcenter}
+i.e., data with two aspects
+
+- "how long until?"
+- "has it happened yet?"
+:::
+
+::: {.fragment}
+::: r-fit-text
+use survival analysis
+:::
+::: {.textcenter}
+to take both aspects into account!
+:::
+:::
+:::
+:::
+
+::: {.notes}
+- if you have data of this format 
+  - where you are observing something "until an event" - be that "time until death" or "newspapers taken until demand saturation"
+  - and you may or may not actually observe that event
+- use survival analysis
+  - designed to take both aspects into account
+  - regular regression models on that time, or newspaper demand, without the event indicator: treating obs as complete 
+  - if you are dropping all censored observations: treating at missing
+:::
+
+::: footer
+Photo by <a href="https://unsplash.com/@waldemarbrandt67w?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Waldemar Brandt</a> on <a href="https://unsplash.com/?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
+:::
+
+## 
+
+::: columns
+::: {.column width="60%"}
+
+<br> <br> <br>
+
+::: r-fit-text
+
+We're extending support for
+
+survival analysis in tidymodels
+
+:::
+:::
+
+::: {.column width="35%"}
+![](images/tidymodels.png){fig-align="center"}
+:::
+:::
+
+::: {.notes}
+- extending support in tidymodels
+- first milestone are the models
+- abundance of riches in models _and_ interfaces
+- effective, safe, and ergonomic
+- part of that: consistent interface
+:::
+
+
+## 
+
+::: columns
+::: {.column width="60%"}
+
+<br> <br> <br>
+
+::: r-fit-text
+
+Consistency in 
+
+- how you specify and fit models
+- how you predict and what you get back
+
+:::
+:::
+
+::: {.column width="35%"}
+![](images/parsnip.png){fig-align="center"}
+:::
+:::
+
+:::{.notes}
+- In the tidymodels framework, this aspect is captured in parsnip package
+- it's designed to give you consistency
+:::
+
+
+
+## 
+
+::: columns
+::: {.column width="60%"}
+
+<br> <br> <br>
+
+::: r-fit-text
+
+Consistency in 
+
+- how you specify and fit _survival_ models
+- how you predict and what you get back
+
+:::
+
+:::
+
+::: {.column width="35%"}
+![](images/censored.png){fig-align="center"}
+:::
+:::
+
+:::{.notes}
+so _censored_ is a parsnip extension package and I'll be talking about how these design principles are playing out for _survival_ models 
+:::
+
+
+# Specify and fit! {background-image="images/linus-nylund-At_r0TuqL8o-unsplash.jpg"}
+
+::: footer
+Photo by <a href="https://unsplash.com/@dreamsoftheoceans?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Linus Nylund</a> on <a href="https://unsplash.com/?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
+:::
+
+## parsnip model specification
+
+```{r}
+#| code-line-numbers: "1|2|3|"
+rand_forest() %>% 
+  set_engine("ranger") %>% 
+  set_mode("regression")
+```
+
+## Additions for survival models
+
+. . .
+
+-   New model type `proportional_hazards()`
+
+. . .
+
+-   New mode `"censored regression"`
+
+. . .
+
+-   New engines for 
+    - Parametric models
+    - Semi-parametric models
+    - Tree-based models
+
+. . .
+
+-   Formula interface for all models, including stratification
+
+## Cetaceans data {background-image="images/adam-berkecz-K6kZKJOmZrk-unsplash.jpeg" background-size="40%" background-position="right"}
+<!-- https://images.unsplash.com/photo-1570481662006-a3a1374699e8?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1530&q=80 -->
+
+::: columns
+::: {.column width="60%"}
+Adapted from [Tidy Tuesday 2018-38](https://github.com/rfordatascience/tidytuesday/tree/master/data/2018/2018-12-18):
+
+```{r cetaceans-data}
+cetaceans
+```
+:::
+:::
+
+::: footer
+Photo by <a href="https://unsplash.com/es/@aberkecz?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Ádám Berkecz</a> on <a href="https://unsplash.com/s/photos/dolphin?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
+::::
+
+::: notes
+- dolphins and whales living in captivity in the USA
+- point out response
+:::
+
+
+## Proportional hazards model
+
+```{r}
+library(censored)
+
+mod_survival_censored <- 
+  proportional_hazards()
+```
+
+## Proportional hazards model
+
+```{r}
+#| code-line-numbers: "5"
+library(censored)
+
+mod_survival_censored <- 
+  proportional_hazards() %>%
+  set_engine("survival") 
+```
+
+## Proportional hazards model
+
+```{r}
+#| code-line-numbers: "6"
+library(censored)
+
+mod_survival_censored <- 
+  proportional_hazards() %>%
+  set_engine("survival") %>% 
+  set_mode("censored regression")
+```
+
+## Proportional hazards model
+
+```{r}
+#| code-line-numbers: "7-10"
+library(censored)
+
+mod_survival_censored <- 
+  proportional_hazards() %>%
+  set_engine("survival") %>% 
+  set_mode("censored regression") %>%
+  fit(
+    Surv(age, event) ~ species + sex + transfers,
+    data = cetaceans
+  )
+```
+
+## Proportional hazards model
+
+```{r}
+#| code-line-numbers: "9|"
+library(censored)
+
+mod_survival_censored <- 
+  proportional_hazards() %>%
+  set_engine("survival") %>%
+  set_mode("censored regression") %>%
+  fit(
+    Surv(age, event) ~ species + sex + transfers + 
+      strata(born_in_captivity),
+    data = cetaceans
+  )
+```
+
+## Proportional hazards model
+
+```{r}
+library(survival)
+
+mod_survival <- coxph(
+  Surv(age, event) ~ species + sex + transfers + strata(born_in_captivity),
+  data = cetaceans
+)
+```
+
+## Switching to penalized model
+
+::: columns
+::: {.column width="50%"}
+```{r}
+library(survival)
+
+mod_survival <- coxph(
+  Surv(age, event) ~ species + sex + 
+    transfers + strata(born_in_captivity),
+  data = cetaceans
+)
+```
+:::
+::: {.column width="50%"}
+:::
+:::
+
+## Switching to penalized model
+
+::: columns
+::: {.column width="50%"}
+```{r}
+library(survival)
+
+mod_survival <- coxph(
+  Surv(age, event) ~ species + sex + 
+    transfers + strata(born_in_captivity),
+  data = cetaceans
+)
+```
+:::
+::: {.column width="50%"}
+```{r}
+#| code-line-numbers: "1|3-6|7-9|11-13|"
+library(glmnet)
+
+x <- model.matrix(~ species + sex + 
+                    transfers, 
+                  data = cetaceans)[, -1]
+y <- Surv(cetaceans$age, cetaceans$event)
+y_strata <- glmnet::stratifySurv(
+  y, strata = cetaceans$born_in_captivity
+)
+
+mod_glmnet <- glmnet(x, y_strata, 
+                     family = "cox", 
+                     lambda = 0.1)
+```
+:::
+:::
+
+
+## Switching via censored
+
+::: columns
+::: {.column width="50%"}
+```{r}
+#| code-line-numbers: "3"
+mod_survival_censored <- 
+  proportional_hazards() %>%
+  set_engine("survival") %>%
+  set_mode("censored regression") %>%
+  fit(
+    Surv(age, event) ~ species + sex + 
+      transfers + 
+      strata(born_in_captivity),
+    data = cetaceans
+  )
+```
+:::
+::: {.column width="50%"}
+```{r}
+#| code-line-numbers: "3"
+mod_glmnet_censored <- 
+  proportional_hazards(penalty = 0.1) %>%
+  set_engine("glmnet") %>%
+  set_mode("censored regression") %>%
+  fit(
+    Surv(age, event) ~ species + sex + 
+      transfers + 
+      strata(born_in_captivity),
+    data = cetaceans
+  )
+```
+:::
+:::
+
+## Switching via censored
+
+::: columns
+::: {.column width="50%"}
+```{r}
+#| code-line-numbers: "2"
+mod_survival_censored <- 
+  proportional_hazards() %>%
+  set_engine("survival") %>%
+  set_mode("censored regression") %>%
+  fit(
+    Surv(age, event) ~ species + sex + 
+      transfers + 
+      strata(born_in_captivity),
+    data = cetaceans
+  )
+```
+:::
+::: {.column width="50%"}
+```{r}
+#| code-line-numbers: "2"
+mod_glmnet_censored <- 
+  proportional_hazards(penalty = 0.1) %>%
+  set_engine("glmnet") %>%
+  set_mode("censored regression") %>%
+  fit(
+    Surv(age, event) ~ species + sex + 
+      transfers + 
+      strata(born_in_captivity),
+    data = cetaceans
+  )
+```
+:::
+:::
+
+## Switching via censored
+
+::: columns
+::: {.column width="50%"}
+```{r}
+#| code-line-numbers: "4-10"
+mod_survival_censored <- 
+  proportional_hazards() %>%
+  set_engine("survival") %>%
+  set_mode("censored regression") %>%
+  fit(
+    Surv(age, event) ~ species + sex + 
+      transfers + 
+      strata(born_in_captivity),
+    data = cetaceans
+  )
+```
+:::
+::: {.column width="50%"}
+```{r}
+#| code-line-numbers: "4-10"
+mod_glmnet_censored <- 
+  proportional_hazards(penalty = 0.1) %>%
+  set_engine("glmnet") %>%
+  set_mode("censored regression") %>%
+  fit(
+    Surv(age, event) ~ species + sex + 
+      transfers + 
+      strata(born_in_captivity),
+    data = cetaceans
+  )
+```
+:::
+:::
+
+## More models, same syntax
+
+```{r}
+#| code-line-numbers: "2,3"
+mod_mboost_censored <- 
+  boost_tree() %>%
+  set_engine("mboost") %>%
+  set_mode("censored regression") %>%
+  fit(
+    Surv(age, event) ~ species + sex + transfers,
+    data = cetaceans
+  )
+```
+
+## Available in censored 
+
+All for the mode `"censored regression"`.
+
+| model                    | engine   |
+|:-------------------------|:---------|
+| `bag_tree()`             | rpart    |
+| `boost_tree()`           | mboost   |
+| `decision_tree()`        | rpart    |
+| `decision_tree()`        | partykit |
+| `proportional_hazards()` | survival |
+| `proportional_hazards()` | glmnet   |
+| `rand_forest()`          | partykit |
+| `survival_reg()`         | survival |
+| `survival_reg()`         | flexsurv |
+
+
+# Predict! {background-image="images/linus-nylund-At_r0TuqL8o-unsplash.jpg"}
+
+::: footer
+Photo by <a href="https://unsplash.com/@dreamsoftheoceans?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Linus Nylund</a> on <a href="https://unsplash.com/?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
+:::
+
+
+## tidymodels prediction guarantee
+
+-   The predictions are always inside a **tibble**.
+-   The column names and types are **unsurprising** and **predictable**.
+-   The number of rows in `new_data` and the output **are the same**.
+
+:::{.notes}
+that also applies to predictions in censored
+
+what's new: additional prediction types!
+
+First up: survival time
+:::
+
+
+## Survival time
+
+```{r}
+#| code-line-numbers: "1-2|"
+cetaceans_pred <- cetaceans[1:3,]
+cetaceans_pred$species[1] <- NA
+
+predict(
+  mod_survival_censored,
+  new_data = cetaceans_pred,
+  type = "time"
+)
+```
+
+
+## Survival probability
+
+```{r}
+#| code-line-numbers: "1-6|"
+pred_survival_censored <- predict(
+  mod_survival_censored,
+  new_data = cetaceans_pred,
+  type = "survival",
+  time = c(10, 15, 20, 40)
+)
+
+pred_survival_censored
+```
+
+:::{.notes}
+- another new prediction type `"survival"`
+- need to specify at which time point we want to predict
+- still 3 rows
+:::
+
+
+## Survival probability
+
+```{r}
+pred_survival_censored$.pred[[1]]
+```
+
+## Survival probability
+
+```{r}
+pred_survival_censored$.pred[[2]]
+```
+
+
+## Approximation the survival curve
+
+```{r}
+#| output-location: column
+#| code-line-numbers: "1-6|8|7|"
+
+predict(
+  mod_mboost_censored, 
+  new_data = cetaceans[2:3,], 
+  type = "survival",
+  time = 1:80
+) %>% 
+  mutate(id = factor(2:3)) %>% 
+  tidyr::unnest(cols = .pred)
+```
+
+
+## Approximation the survival curve
+
+```{r}
+#| output-location: column
+#| out-width: '100%'
+#| fig-width: 5.4
+#| fig-height: 3.6
+#| fig-align: 'center'
+#| dev: 'svg'
+#| dev-args: list(bg = "transparent")
+#| code-line-numbers: "9-15"
+
+predict(
+  mod_mboost_censored, 
+  new_data = cetaceans[2:3,], 
+  type = "survival",
+  time = 1:80
+) %>% 
+  mutate(id = factor(2:3)) %>% 
+  tidyr::unnest(cols = .pred) %>% 
+  ggplot(
+    aes(x = .time, y = .pred_survival,
+        col = id)
+  ) +
+  geom_step() +
+  theme_bw() +
+  theme(legend.position = "top") 
+```
+
+
+
+
+
+
+## Prediction types in censored
+
+- For all models: `"time"` and `"survival"`
+- Depending on the engine: `"hazard"`, `"quantile"`, `"linear_pred"`
+
+:::{.notes}
+you don't have to do your own
+
+-   data prep for matrix interface
+-   padding of results for data with `NA`
+-   transformation from survival curve to survival probabilities at any time point
+:::
+
+---
+
+::: columns
+::: {.column width="35%"}
+<br>
+![](images/censored.png)
+:::
+
+::: {.column width="60%"}
+
+<br> <br>
+
+::: r-fit-text
+A consistent interface to 
+
+survival models
+:::
+
+<br>
+
+::: r-fit-text
+[censored.tidymodels.org](https:://censored.tidymodels.org)
+:::
+
+:::
+:::
+
+:::{.notes}
+- consistency in how you specify and fit 
+- consistency in how you predict and what you get back
+- please try it out and give us feedback
+:::
